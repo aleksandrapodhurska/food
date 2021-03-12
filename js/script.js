@@ -241,35 +241,14 @@ window.addEventListener('DOMContentLoaded', () => {
             this.parent.append(element);
         }
     }
-
-    new MenuCard(
-        "img/tabs/vegy.jpg",
-        "vegy",
-        'Меню "Фитнес"',
-        'Меню "Фитнес" - это новый подход к приготовлению блюд: больше свежих овощей и фруктов. Продукт активных и здоровых людей. Это абсолютно новый продукт с оптимальной ценой и высоким качеством!',
-        9,
-        '.menu .container'
-
-    ).render();
-
-    new MenuCard(
-        "img/tabs/elite.jpg",
-        "elite",
-        'Меню "Премиум"',
-        'Меню "Премиум" мы используем не только красивый дизайн упаковки, но и качественное исполнение блюд. Красная рыба, морепродукты, фрукты - ресторанное меню без похода в ресторан!',
-        25.8,
-        '.menu .container'
-    ).render();
-
-    new MenuCard(
-        "img/tabs/post.jpg",
-        "post",
-        'Меню "Постное"',
-        'Меню "Постное" - это тщательный подбор ингредиентов: полное отсутствие продуктов животного происхождения, молоко из миндаля, овса, кокоса или гречки, правильное количество белков за счет тофу и импортных вегетарианских стейков.',
-        18,
-        '.menu .container'
-    ).render();
     
+    getResourse('http://localhost:3000/menu')
+        .then(data => {
+            data.forEach(({img, altimg, title, descr, price}) => {
+                new MenuCard(img, altimg, title, descr, price, '.menu .container').render();
+        });
+    });
+
             // Forms
 
             const forms = document.querySelectorAll('form');
@@ -281,11 +260,31 @@ window.addEventListener('DOMContentLoaded', () => {
             };
     
             forms.forEach(item => {
-                postData(item);
+                bindPostData(item);
             });
+            
+            const postData = async (url, data) => {
+                const res = await fetch(url, {
+                    method: 'POST',
+                        headers: {
+                            'Content-type': 'application/json'
+                        },
+                        body: data
+                });
+
+                return await res.json();
+            };
+
+            async function getResourse(url) {
+                let res = await fetch(url);
+                if (!res.ok) {
+                    throw new Error(`Could not fetch ${url}, status: ${res.status}`);
+                }
+
+                return await res.json();
+            }
     
-    
-            function postData(form) {
+            function bindPostData(form) {
                 form.addEventListener('submit', (e) => {
                     e.preventDefault();
     
@@ -297,33 +296,24 @@ window.addEventListener('DOMContentLoaded', () => {
                     `;
                     form.insertAdjacentElement('afterend', statusMessage);
 
-                    const request = new XMLHttpRequest();
-                    request.open('POST', 'server.php');
-                    request.setRequestHeader('Content-type', 'application/json; charset=utf-8');
                     const formData = new FormData(form);
 
-                    const object = {};
-                    formData.forEach(function(value, key){
-                        object[key] = value;
-                    });
-            
-                    const json = JSON.stringify(object);
+                    const json = JSON.stringify(Object.fromEntries(formData.entries()));
 
-                    request.send(json);
-
-                    request.addEventListener('load', () => {
-                        if (request.status === 200) {
-                            console.log(request.response);
-                            thankMessageModal(message.success);
-                            statusMessage.remove();
-                            form.reset();
-                        } else {
-                            thankMessageModal(message.failure);
-                        }
+                    postData('http://localhost:3000/requests', json)
+                    .then(data => {
+                        console.log(data);
+                        thankMessageModal(message.success);
+                        statusMessage.remove();
+                    })
+                    .catch(() => {
+                        thankMessageModal(message.failure);
+                    })
+                    .finally(() => {
+                        form.reset();
                     });
                 });               
             }
-                
 
             function thankMessageModal(message) {
                 const prevModal = document.querySelector('.modal__dialog');
